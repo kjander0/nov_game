@@ -1,19 +1,3 @@
--- ===TODO===
--- order ground blocks by x plane
--- Is the interesting part the fact that you have to watch both the player and the tiles ahead that are going to be effecting him.
-	-- Do we want the mechanic to require you to trial by error find a tempo to the key strokes? (sounds fun)
-	-- quick super meatboy respawns (checkpoint)
--- Question! does allowing them to undo inputs make it too easy? (yeah, because you can just spam anything to speed up, then add good inputs later)\
--- One long level with checkpoints
--- right/up to add inputs, left or down to remove
--- add inputs to jump longer
--- add/remove inputs when airborn to change trajectory and maneuvre obstacles
--- add/remove to run fast slow to time moving between traps, etc
--- astronaught soace walk theme?
--- render transparent arrows along tiles
--- handle player moving faster than block size
--- RELATED: set MAX deltatime
-	
 local TILE_SIZE = 24
 
 local SLOW_TIME_SEC = 0.125
@@ -24,7 +8,7 @@ local window_flags = {resizable = true}
 love.window.setMode(screen_width, screen_height, window_flags)
 
 local player = {
-	width = 24, height = 48,
+	width = 23, height = 48,
 	pos = {x = 0, y = 0},
 	prev_pos = {x = 0, y = 50},
 	vel = {x = 0, y = 0},
@@ -34,45 +18,77 @@ local player = {
 
 -- 0: empty
 -- 1: generic tile
--- 2: forced input buffer tile for ambigious cases
+-- 3: spike
+-- 8: finish
 -- 9: player
 
-local block_table = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					 {0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					 {0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
-					 
+local block_table = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
+				 
 local input_buffer
 local next_input_index
 local player_img
-local tile_img, forward_img, jump_img
+local tile_img, forward_img, jump_img, goal_img
 
 local slow_time = 0
 
 local my_input_column = 0
 
-function love.load()
+local win
+
+function reset()
+	win = false
 	input_buffer = find_buffer_tiles()
 	next_input_index = 1
-	player_img = love.graphics.newImage("player.png")
-	tile_img = love.graphics.newImage("tile.png")
-	forward_img = love.graphics.newImage("forward.png")
-	jump_img = love.graphics.newImage("jump.png")
-
-	love.graphics.setBackgroundColor(0.75, 0.75, 0.87)
 	
+	-- set player position
 	for row_index, row in ipairs(block_table) do
 		for column_index in ipairs(row) do
 			if get_block(column_index, row_index) == 9 then
 				player.pos.x, player.pos.y = index_to_pos(column_index, row_index)
 				player.pos.x = player.pos.x + player.width/2
+				player.prev_pos.x = player.pos.x
+				player.prev_pos.y = player.pos.y
 			end
 		end
-	end	
+	end
+	player.grounded = false
+	player.vel.x = 0
+	player.vel.y = 0
+end
+
+function love.load()
+	love.graphics.setBackgroundColor(0.75, 0.75, 0.87)
+	
+	player_img = love.graphics.newImage("player.png")
+	tile_img = love.graphics.newImage("tile.png")
+	forward_img = love.graphics.newImage("forward.png")
+	jump_img = love.graphics.newImage("jump.png")
+	goal_img = love.graphics.newImage("goal.png")
+	spike_img = love.graphics.newImage("spike.png")
+	
+	reset()
+end
+
+function absolute(a)
+	if a < 0 then
+		a = a * -1
+	end
+	return a
 end
 
 -- returned buffer is indexed by column
@@ -125,6 +141,7 @@ function index_to_pos(column_index, row_index)
 end
 
 function love.draw()
+	love.graphics.setColor(1, 1, 1, 1)
 	love.graphics.translate(-player.pos.x + screen_width/2, -player.pos.y + screen_height/2)
 	love.graphics.setBlendMode("alpha")
 	love.graphics.draw(player_img, player.pos.x - player.width/2, player.pos.y - player.height)
@@ -133,20 +150,24 @@ function love.draw()
 		for column_index, tile_val in pairs(row) do
 			if tile_val == 1 then
 				love.graphics.draw(tile_img, (column_index -1) * TILE_SIZE, (row_index -1) * TILE_SIZE)
+			elseif tile_val == 8 and not win then
+				love.graphics.draw(goal_img, (column_index -1) * TILE_SIZE, (row_index -1) * TILE_SIZE)
+			elseif tile_val == 3 then
+				love.graphics.draw(spike_img, (column_index -1) * TILE_SIZE, (row_index -1) * TILE_SIZE)
 			end
 		end
 	end
 	
-	local anx, any = index_to_pos(my_input_column, 0)
 	
-	love.graphics.setColor(1, 0, 0, 1)
-	local column_index, row_index = pos_to_index(player.pos.x, player.pos.y - player.height/2)
-	for row_offset = -1, 1 do
-		for column_offset = -1, 1 do
-			local blockx, blocky = index_to_pos(column_index + column_offset, row_index + row_offset)
+	
+	-- love.graphics.setColor(1, 0, 0, 1)
+	-- local column_index, row_index = pos_to_index(player.pos.x, player.pos.y - player.height/2)
+	-- for row_offset = -1, 1 do
+		-- for column_offset = -1, 1 do
+			-- local blockx, blocky = index_to_pos(column_index + column_offset, row_index + row_offset)
 			--love.graphics.polygon('line',  blockx, blocky, blockx + TILE_SIZE, blocky, blockx +TILE_SIZE, blocky - TILE_SIZE, blockx, blocky - TILE_SIZE)
-		end
-	end
+		-- end
+	-- end
 	
 	love.graphics.setColor(1, 1, 0, 1)
 	for _, input in ipairs(input_buffer) do
@@ -160,8 +181,13 @@ function love.draw()
 		end
 	end
 	
-	love.graphics.setColor(1, 1, 1, 1)
-	
+	love.graphics.origin()
+	love.graphics.setColor(0.1, 0.2, 0.1, 1)
+	if win then
+		love.graphics.print("Win, nice!", screen_width/2, 0, 0, 1.5, 1.5)
+	end
+	love.graphics.print("right: forward\nup: jump\nr: reset", 10, screen_height-50, 0, 1, 1)
+	love.graphics.setColor(1, 1, 1, 1)	
 end
 
 function player_block_overlap(column_index, row_index)
@@ -185,7 +211,10 @@ end
 
 
 function love.update(dt)
-
+	if win == true then
+		return
+	end
+	
 	if slow_time > 0 then
 		slow_time = slow_time - dt
 		return
@@ -208,12 +237,11 @@ function love.update(dt)
 		end
 		input_count = input_count + 1
 	until false
-	if last_input then
-		print(last_input.column_index, player_column_index)
-	end
-	if player.grounded and last_input and last_input.input == 'jump' and last_input.column_index == player_column_index then
-		
-		player.vel.y = -200
+	if player.grounded and last_input and last_input.input == 'jump' then
+		local last_input_x, last_input_y = index_to_pos(last_input.column_index, last_input.row_index)
+		if last_input.column_index == player_column_index and absolute(last_input_y - player.pos.y) < 5 then
+			player.vel.y = -200
+		end
 	end
 	
 	player.prev_pos.x = player.pos.x
@@ -221,13 +249,16 @@ function love.update(dt)
 
 
     player.accel.y = 240
-	--player.vel.x = player.vel.x + player.accel.x * dt
 	player.vel.x = input_count * 30
 	player.vel.y = player.vel.y + player.accel.y * dt
 
 	player.pos.x = player.pos.x + player.vel.x * dt
 
 	player.pos.y = player.pos.y + player.vel.y * dt
+	
+	if player.pos.y > (#block_table + 5) * TILE_SIZE then
+		reset()
+	end
 
 	-- handle static block collisions
 	player.grounded = false
@@ -236,8 +267,16 @@ function love.update(dt)
 		for column_offset = -1, 1 do
             local block_column_index = player_column_index + column_offset
             local block_row_index = player_row_index + row_offset
-			if get_block(block_column_index, block_row_index) == 1 then
+			local block_type = get_block(block_column_index, block_row_index)
+			if block_type ~= 0 then
                 if player_block_overlap(block_column_index, block_row_index) then
+					if block_type == 8 then
+						win = true
+						return
+					elseif block_type == 3 then
+						reset()
+						return
+					end
                     local top, bottom, left, right = get_block_neighbours(block_column_index, block_row_index)
 	                local blockx, blocky = index_to_pos(block_column_index, block_row_index)
                     if player.vel.y > 0 and top ~= 1 then
@@ -277,6 +316,9 @@ function love.keypressed(key)
         input_type = 'move'
     elseif key == 'w' or key == 'up' then
         input_type = 'jump'
+	elseif key == 'r' then
+		reset()
+		return
     else
 		return
 	end
@@ -294,8 +336,4 @@ function love.keypressed(key)
 	
 	next_input.input = input_type
 	slow_time = SLOW_TIME_SEC
-end
-
-function love.keyreleased(key)
-end
-					 
+end				 
